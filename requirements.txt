@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-community
+langchain-core
+langchain-google-genai
+langgraph
+psycopg[binary,pool]
+langchain-postgres
+unstructured[all-docs]
+pydantic
+python-dotenv==1.0.1
