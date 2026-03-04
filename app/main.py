@@ -82,8 +82,9 @@ async def query_documents(request: QueryRequest):
     # 1. Retrieve semantically similar documents
     retriever = vector_store.as_retriever(search_kwargs={"k": request.top_k})
     
-    # 2. Prepare the ChatModel (Standard ID: gemini-1.5-flash)
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+    # 2. Prepare the ChatModel (Configurable via GEMINI_QUERY_MODEL)
+    query_model = os.getenv("GEMINI_QUERY_MODEL", "models/gemini-flash-latest")
+    llm = ChatGoogleGenerativeAI(model=query_model, temperature=0)
 
     # 3. Build a specialized system prompt for RAG
     system_prompt = (

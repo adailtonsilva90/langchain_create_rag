@@ -9,6 +9,9 @@ from pydantic import BaseModel, Field
 from app.rag.loaders import extract_text_from_file
 from app.rag.vectorstore import add_documents_to_store, embeddings
 
+# Model Configurations from Environment
+GEMINI_ANALYSIS_MODEL = os.getenv("GEMINI_ANALYSIS_MODEL", "models/gemini-flash-latest")
+
 # -----------------
 # State Schema
 # -----------------
@@ -44,8 +47,8 @@ def analysis_node(state: DocumentState) -> DocumentState:
     # Use only the first 4000 characters for semantic evaluation to save tokens
     sample_text = text[:4000] 
     
-    # Using Gemini for semantic analysis (Standard ID: gemini-1.5-flash)
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+    # Using Gemini for semantic analysis (Configurable via GEMINI_ANALYSIS_MODEL)
+    llm = ChatGoogleGenerativeAI(model=GEMINI_ANALYSIS_MODEL, temperature=0)
     
     # In modern langchain-google-genai for Pydantic parsing:
     structured_llm = llm.with_structured_output(DocumentAnalysis)
