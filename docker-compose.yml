@@ -14,5 +14,54 @@ services:
       - pgvector_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: rag_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  ollama-pull-models:
+    image: ollama/ollama:latest
+    container_name: rag_ollama_puller
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - |
+        echo "Waiting for Ollama server to be ready..."
+        until curl -s http://ollama:11434/api/tags > /dev/null; do
+          sleep 2
+        done
+        echo "Ollama server is up!"
+        if ollama list | grep -q 'nomic-embed-text'; then
+          echo "Model 'nomic-embed-text' already exists. Skipping pull."
+        else
+          echo "Model 'nomic-embed-text' not found. Pulling..."
+          ollama pull nomic-embed-text
+        fi
+        echo "Puller task finished."
+    depends_on:
+      - ollama
+
 volumes:
   pgvector_data:
+  pgadmin_data:
+  ollama_data:

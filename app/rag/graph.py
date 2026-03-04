@@ -19,41 +19,40 @@ class DocumentState(TypedDict, total=False):
     metadata: Dict[str, Any]
     chunks: List[Document]
 
-# -----------------
-# LLM Schema para a Análise Semântica
-# -----------------
+# LLM Schema for Semantic Analysis
 class DocumentAnalysis(BaseModel):
-    category: str = Field(description="A categoria com uma a três palavras do documento (ex: 'Contrato', 'Artigo Científico', 'Nota Fiscal', etc)")
-    summary: str = Field(description="Um resumo de 1 a 2 frases do que o documento se trata de forma fidedigna.")
-    entities: List[str] = Field(description="Lista de entidades principais mencionadas no texto (empresas, pessoas, produtos).")
+    category: str = Field(description="The document category in one to three words (e.g., 'Contract', 'Scientific Article', 'Invoice', etc.)")
+    summary: str = Field(description="A reliable 1-2 sentence summary of what the document is about.")
+    entities: List[str] = Field(description="List of main entities mentioned in the text (companies, people, products).")
 
 # -----------------
 # Nodes
 # -----------------
 
 def extract_node(state: DocumentState) -> DocumentState:
-    print(f"--> [Extract Node] Processando arquivo: {state['filename']}")
+    print(f"--> [Extract Node] Processing file: {state['filename']}")
     raw_text = extract_text_from_file(state["file_bytes"], state["filename"])
     return {"raw_text": raw_text}
 
 def analysis_node(state: DocumentState) -> DocumentState:
-    print("--> [Analysis Node] Analisando semântica do texto...")
+    print("--> [Analysis Node] Analyzing text semantics...")
     text = state["raw_text"]
     if not text.strip():
-        print("Aviso: Texto vazio.")
+        print("Warning: Empty text.")
         return {"metadata": {}}
         
-    # Usa apenas os primeiros 4000 caracteres para avaliação semântica para economizar tokens
+    # Use only the first 4000 characters for semantic evaluation to save tokens
     sample_text = text[:4000] 
     
+    # Using Gemini for semantic analysis (Standard ID: gemini-1.5-flash)
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
     
-    # Em langchain-google-genai moderno para Pydantic parsing:
+    # In modern langchain-google-genai for Pydantic parsing:
     structured_llm = llm.with_structured_output(DocumentAnalysis)
     
     try:
         analysis: DocumentAnalysis = structured_llm.invoke(
-            f"Analise o seguinte documento e extraia os metadados pedidos:\n\n{sample_text}"
+            f"Analyze the following document and extract the requested metadata:\n\n{sample_text}"
         )
         metadata = {
             "source": state["filename"],
@@ -62,38 +61,48 @@ def analysis_node(state: DocumentState) -> DocumentState:
             "entities": ", ".join(analysis.entities)
         }
     except Exception as e:
-        print(f"Falha na Análise Semântica: {e}")
-        metadata = {"source": state["filename"], "category": "Desconhecida"}
+        print(f"Semantic Analysis Failed: {e}")
+        metadata = {"source": state["filename"], "category": "Unknown"}
         
     return {"metadata": metadata}
 
 def chunking_node(state: DocumentState) -> DocumentState:
-    print("--> [Chunking Node] Criando chunks semânticos...")
-    text = state["raw_text"]
-    metadata = state.get("metadata", {"source": state["filename"]})
+    print("--> [Chunking Node] Creating semantic chunks...")
+    text = state.get("raw_text", "")
+    metadata = state.get("metadata", {"source": state.get("filename", "unknown")})
     
     if not text.strip():
         return {"chunks": []}
 
-    # Utilizando o SemanticChunker do LangChain Experimental com as Embeddings locais do Ollama
-    text_splitter = SemanticChunker(embeddings)
-    
-    # O SemanticChunker vai dividir as sentenças usando LLM embeddings e pareando-as se fizerem sentido
-    docs = text_splitter.create_documents([text], metadatas=[metadata])
-    print(f"Foram gerados {len(docs)} chunks semânticos.")
-    
-    return {"chunks": docs}
+    try:
+        # Using SemanticChunker from LangChain Experimental with local Ollama Embeddings
+        text_splitter = SemanticChunker(embeddings)
+        
+        # SemanticChunker will divide sentences using LLM embeddings
+        docs = text_splitter.create_documents([text], metadatas=[metadata])
+        print(f"Generated {len(docs)} semantic chunks.")
+        return {"chunks": docs}
+    except Exception as e:
+        print(f"Semantic Chunking Failed: {e}. Falling back to single chunk.")
+        # Fallback to a single chunk if semantic chunking fails (e.g., Ollama unavailable)
+        fallback_doc = Document(page_content=text, metadata=metadata)
+        return {"chunks": [fallback_doc]}
 
 def insertion_node(state: DocumentState) -> DocumentState:
-    print("--> [Insertion Node] Inserindo chunks no pgvector...")
+    print("--> [Insertion Node] Inserting chunks into pgvector...")
     chunks = state.get("chunks", [])
-    if chunks:
-        add_documents_to_store(chunks)
-        print("Inserção concluída.")
-    else:
-        print("Nenhum chunk para inserir.")
+    if not chunks:
+        print("No chunks to insert.")
+        return state
         
-    return state # Retorna o state intacto ou com confirmação
+    try:
+        add_documents_to_store(chunks)
+        print("Insertion complete.")
+    except Exception as e:
+        print(f"Insertion Failed: {e}")
+        # We don't crash here, so the user can at least get the extraction results
+        
+    return state
 
 # -----------------
 # Graph Builder
@@ -106,12 +115,12 @@ workflow.add_node("analyze", analysis_node)
 workflow.add_node("chunk", chunking_node)
 workflow.add_node("insert", insertion_node)
 
-# Define o fluxo
+# Define the flow
 workflow.set_entry_point("extract")
 workflow.add_edge("extract", "analyze")
 workflow.add_edge("analyze", "chunk")
 workflow.add_edge("chunk", "insert")
 workflow.add_edge("insert", END)
 
-# Compila o grafo
+# Compile the graph
 app_graph = workflow.compile()

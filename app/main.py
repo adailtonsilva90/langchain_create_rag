@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
@@ -13,13 +16,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.rag.graph import app_graph
 from app.rag.vectorstore import vector_store
 
-# Carrega variáveis de ambiente
-from dotenv import load_dotenv
-load_dotenv()
-
 app = FastAPI(title="RAG API - Document Intelligence", version="1.0")
 
-# --- Modelos Pydantic ---
+# --- Pydantic Models ---
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 4
@@ -29,18 +28,18 @@ class QueryRequest(BaseModel):
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     """
-    Endpoint para realizar o envio de arquivos (PDF, PNG, JPG, DOCX, PPTX).
-    Inicia o fluxo do LangGraph para extração, análise semântica e chunking.
+    Endpoint to upload files (PDF, PNG, JPG, DOCX, PPTX).
+    Starts the LangGraph workflow for extraction, semantic analysis, and chunking.
     """
     if not file.filename:
-        raise HTTPException(status_code=400, detail="Arquivo não contém nome.")
+        raise HTTPException(status_code=400, detail="File has no name.")
 
     try:
         content = await file.read()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading file: {e}")
 
-    # Inicializando o state do LangGraph
+    # Initializing LangGraph state
     initial_state = {
         "file_bytes": content,
         "filename": file.filename,
@@ -50,48 +49,47 @@ async def upload_document(file: UploadFile = File(...)):
     }
 
     try:
-        # Inicia o pipeline de processamento (pode ser demorado para arquivos longos/LLMs remotas)
-        # O langgraph atual usa dicts mas alguns métodos podem retornar iterators.
-        # Vamos assumir o processamento imperativo pra facilitar aqui:
+        # Start processing pipeline
         final_state = app_graph.invoke(initial_state)
-        metadata_gerado = final_state.get("metadata", {})
-        total_chunks = len(final_state.get("chunks", []))
+        print(f"DEBUG: final_state keys: {final_state.keys()}")
+        generated_metadata = final_state.get("metadata", {})
+        chunks = final_state.get("chunks", [])
+        print(f"DEBUG: final_state chunks count: {len(chunks)}")
+        total_chunks = len(chunks)
         
         return JSONResponse({
             "status": "success",
-            "message": "Arquivo ingerido com sucesso!",
+            "message": "File ingested successfully!",
             "filename": file.filename,
-            "metadata_analisado": metadata_gerado,
-            "chunks_inseridos": total_chunks
+            "analyzed_metadata": generated_metadata,
+            "chunks_inserted": total_chunks
         })
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro durante o LangGraph pipeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during LangGraph pipeline: {e}")
 
 
 @app.post("/query")
 async def query_documents(request: QueryRequest):
     """
-    Endpoint para realizar perguntas (Question Answering) via RAG nos documentos ingeridos.
-    Utiliza o Gemini para gerar as respostas consultando a abstração do pgvector.
+    Endpoint for Question Answering (QA) via RAG on ingested documents.
+    Uses Gemini to generate responses by querying the pgvector abstraction.
     """
     question = request.question
     if not question:
-        raise HTTPException(status_code=400, detail="A 'question' informada não pode ser vazia.")
+        raise HTTPException(status_code=400, detail="The provided 'question' cannot be empty.")
 
-    # 1. Recupera os documentos semanticamente similares
+    # 1. Retrieve semantically similar documents
     retriever = vector_store.as_retriever(search_kwargs={"k": request.top_k})
     
-    # 2. Prepara o ChatModel
-    # Optamos pelo gemini-1.5-flash pela agilidade. 
-    # Pode trocar por pro se o contexto exigido for mais profundo.
+    # 2. Prepare the ChatModel (Standard ID: gemini-1.5-flash)
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
 
-    # 3. Constroi o prompt de sistema especializado pra RAG
+    # 3. Build a specialized system prompt for RAG
     system_prompt = (
-        "Você é um assistente prestativo focado em responder perguntas analisando o contexto fornecido abaixo.\n"
-        "Use APENAS o contexto para basear sua resposta. Se não souber responder, diga que não há informações.\n\n"
-        "Contexto Encontrado (Com Metadados da IA Analisadora):\n"
+        "You are a helpful assistant focused on answering questions by analyzing the context provided below.\n"
+        "Use ONLY the context to base your answer. If you don't know the answer, say there is no information.\n\n"
+        "Found Context (With AI Analyzer Metadata):\n"
         "{context}"
     )
     prompt = ChatPromptTemplate.from_messages([
@@ -99,18 +97,18 @@ async def query_documents(request: QueryRequest):
         ("human", "{input}"),
     ])
 
-    # 4. Criando a Chain final de RAG e invocando 
+    # 4. Creating the final RAG chain and invoking it
     question_answer_chain = create_stuff_documents_chain(llm, prompt)
     rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
     try:
-        resultado = rag_chain.invoke({"input": question})
-        answer = resultado["answer"]
+        result = rag_chain.invoke({"input": question})
+        answer = result["answer"]
         context_docs = [
             {
                 "page_content": doc.page_content,
                 "metadata": doc.metadata
-            } for doc in resultado["context"]
+            } for doc in result["context"]
         ]
 
         return {
@@ -119,9 +117,9 @@ async def query_documents(request: QueryRequest):
             "context_sources": context_docs
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Falha ao consultar documentos e gerar resposta: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to query documents and generate response: {e}")
 
 
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "API RAG rodando perfeitamente."}
+    return {"status": "ok", "message": "RAG API running perfectly."}

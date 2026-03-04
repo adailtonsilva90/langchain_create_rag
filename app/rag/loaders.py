@@ -10,7 +10,7 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
     Because unstructured often needs a file path to inspect the magic bytes or extension,
     we write the incoming bytes to a temporary file before partitioning.
     """
-    # Usando o sufixo original para ajudar o unstructured na identificação do tipo
+    # Using original suffix to help unstructured identify the file type
     ext = os.path.splitext(filename)[1]
     
     with NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
@@ -18,18 +18,19 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
         temp_path = temp_file.name
 
     try:
-        # Extrai os elementos do documento
+        # Extract elements from the document
         elements = partition(filename=temp_path)
         
-        # Opcional: Agrupar por título ou manter texto puro. 
-        # Aqui, juntamos tudo pois o chunking semântico ocorrerá depois.
+        # Optional: Group by title or keep as plain text.
+        # Here, we join everything as semantic chunking will happen later.
         text = "\n\n".join([str(el) for el in elements])
+        print(f"DEBUG: Extracted text length: {len(text)}")
         return text
     
     except Exception as e:
-        print(f"Erro ao extrair texto do arquivo: {e}")
+        print(f"Error extracting text from file: {e}")
         return ""
     finally:
-        # Limpar o arquivo temporário
+        # Clean up temporary file
         if os.path.exists(temp_path):
             os.remove(temp_path)
