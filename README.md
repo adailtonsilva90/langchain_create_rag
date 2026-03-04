@@ -14,7 +14,7 @@ Este é um projeto de API em Python (via FastAPI) focado em **Retrieval-Augmente
    ```bash
    cp .env_template .env
    ```
-   Abra o `.env` gerado e preencha sua `GOOGLE_API_KEY`.
+   Abra o `.env` gerado e preencha as variáveis de ambiente necessárias com os seus dados locais (chaves de API, credenciais de banco e URLs de serviços). Siga os comentários disponíveis no próprio `.env_template` como guia.
 
 2. **Subir o banco de dados (pgvector)**:
    ```bash
