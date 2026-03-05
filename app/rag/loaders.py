@@ -1,36 +1,79 @@
 import os
-from tempfile import NamedTemporaryFile
-from unstructured.partition.auto import partition
-from unstructured.chunking.title import chunk_by_title
-from typing import List
+import json
+import base64
+from typing import List, Dict, Any
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage
 
-def extract_text_from_file(file_content: bytes, filename: str) -> str:
+def get_llm():
+    model_name = os.getenv("GEMINI_ANALYSIS_MODEL", "models/gemini-2.5-flash")
+    return ChatGoogleGenerativeAI(model=model_name, temperature=0)
+
+def extract_raw_text(file_bytes: bytes, filename: str) -> str:
     """
-    Extracts text from various file formats (PDF, DOCX, PPTX, Images) using the unstructured library.
-    Because unstructured often needs a file path to inspect the magic bytes or extension,
-    we write the incoming bytes to a temporary file before partitioning.
+    Extracts ONLY the raw text from a document using Gemini.
     """
-    # Using original suffix to help unstructured identify the file type
-    ext = os.path.splitext(filename)[1]
+    llm = get_llm()
+    ext = os.path.splitext(filename)[1].lower()
+    mime_type = "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"
+    if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
     
-    with NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
-        temp_file.write(file_content)
-        temp_path = temp_file.name
+    data_b64 = base64.b64encode(file_bytes).decode("utf-8")
+    
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": "Extraia todo o texto deste documento de forma literal e completa. Retorne apenas o texto extraído."},
+            {"type": "media", "mime_type": mime_type, "data": data_b64}
+        ]
+    )
 
     try:
-        # Extract elements from the document
-        elements = partition(filename=temp_path)
-        
-        # Optional: Group by title or keep as plain text.
-        # Here, we join everything as semantic chunking will happen later.
-        text = "\n\n".join([str(el) for el in elements])
-        print(f"DEBUG: Extracted text length: {len(text)}")
-        return text
-    
+        response = llm.invoke([message])
+        return response.content.strip()
     except Exception as e:
-        print(f"Error extracting text from file: {e}")
-        return ""
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        print(f"Error in extract_raw_text: {e}")
+        return f"Error: {e}"
+
+def extract_semantic_content(file_bytes: bytes, filename: str) -> Dict[str, Any]:
+    """
+    Extracts text and semantic sections (JSON) using Gemini.
+    Used for the ingestion pipeline.
+    """
+    llm = get_llm()
+    ext = os.path.splitext(filename)[1].lower()
+    mime_type = "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"
+    if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
+    
+    data_b64 = base64.b64encode(file_bytes).decode("utf-8")
+    
+    prompt = (
+        "Analise o documento e extraia o texto de forma estruturada.\n"
+        "Identifique seções semânticas naturais (ex: Experiência, Formação, Capítulos).\n\n"
+        "Retorne EXCLUSIVAMENTE um JSON no formato:\n"
+        "{\n"
+        "  \"raw_text\": \"texto completo\",\n"
+        "  \"sections\": [\n"
+        "    {\"category\": \"nome\", \"content\": \"conteúdo\"}\n"
+        "  ]\n"
+        "}"
+    )
+
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": prompt},
+            {"type": "media", "mime_type": mime_type, "data": data_b64}
+        ]
+    )
+
+    try:
+        response = llm.invoke([message])
+        content = response.content.strip()
+        if content.startswith("```json"):
+            content = content.replace("```json", "").replace("```", "").strip()
+        elif content.startswith("```"):
+            content = content.replace("```", "").strip()
+        
+        return json.loads(content)
+    except Exception as e:
+        print(f"Error in extract_semantic_content: {e}")
+        return {"raw_text": "", "sections": []}
