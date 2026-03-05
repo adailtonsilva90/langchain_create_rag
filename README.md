@@ -49,13 +49,13 @@ Available at: `http://localhost:5050`
 
 - `POST /test-extraction`: Test raw text extraction from PDF/Images using Gemini.
 - `POST /upload`: Upload documents for semantic ingestion and vector storage.
-  - [View Ingestion Flow Lifecycle](docs/diagrams/upload_flow.md)
+  - [View Ingestion Flow Diagram](docs/diagrams/upload_flow.png)
 - `POST /query`: Query the ingested documents using natural language.
-  - [View Query Flow Lifecycle](docs/diagrams/query_flow.md)
+  - [View Query Flow Diagram](docs/diagrams/query_flow.png)
 - `GET /`: Health check.
 
 > [!TIP]
-> You can also check the [System Architecture Overview](docs/diagrams/system_architecture.md) for a full view of the components.
+> You can also check the [System Architecture Overview](docs/diagrams/system_architecture.png).
 
 ## Testing
 To verify the installation, you can run a simple health check or use the Swagger UI to test the endpoints.
