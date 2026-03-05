@@ -5,6 +5,7 @@ This is a Python API (FastAPI) focused on **Retrieval-Augmented Generation (RAG)
 ## Prerequisites
 - Python 3.10+
 - Docker and Docker Compose
+- Google Gemini API Key
 
 ## How to Run Locally
 
@@ -16,11 +17,10 @@ This is a Python API (FastAPI) focused on **Retrieval-Augmented Generation (RAG)
    Open the generated `.env` and fill in the required variables (Google API Key, database credentials, etc.).
 
 2. **Start the Infrastructure**:
-   This will start PostgreSQL (with pgvector), pgAdmin, and Ollama (with automatic model download):
+   This will start PostgreSQL (with pgvector) and pgAdmin:
    ```bash
    docker-compose up -d
    ```
-   *Note: On the first run, the `ollama-pull-models` container will download the `nomic-embed-text` model. You can monitor progress with `docker logs -f rag_ollama_puller`.*
 
 3. **Install Dependencies**:
    ```bash
@@ -41,16 +41,17 @@ This is a Python API (FastAPI) focused on **Retrieval-Augmented Generation (RAG)
 Available at: `http://localhost:5050`
 - **Login**: (Use the email/password defined in your `.env`)
 - **Server Connection**:
-  - **Host**: `pgvector`
+  - **Host**: `rag_pgvector`
   - **Port**: `5432`
   - **Username/Password**: (Use credentials from your `.env`)
 
 ## Endpoints
-- `POST /upload`: Upload PDF, DOCX, or Images for semantic ingestion.
+- `POST /test-extraction`: Test raw text extraction from PDF/Images using Gemini.
+- `POST /upload`: Upload documents for semantic ingestion and vector storage.
 - `POST /query`: Query the ingested documents using natural language.
 - `GET /`: Health check.
 
 ## Testing
 To verify the installation, you can run a simple health check or use the Swagger UI to test the endpoints.
-- **Manual Test**: Upload a document and check the terminal logs for the English progress messages:
-  `--> [Extract Node] Processing file...`
+- **Manual Test**: Upload a document and check the terminal logs for progress messages:
+  `--> [Extract Node] Multimodal processing...`

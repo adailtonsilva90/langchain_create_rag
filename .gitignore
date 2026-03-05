@@ -12,8 +12,6 @@ __pycache__/
 # Arquivos de IDE
 .vscode/
 .idea/
-share/
-Sripts/
 # Arquivos gerados/temporários ou logs
 *.log
 /data
