@@ -19,7 +19,7 @@ app = FastAPI(title="RAG API - Document Intelligence", version="1.1")
 # --- Pydantic Models ---
 class QueryRequest(BaseModel):
     question: str
-    top_k: int = 4
+    top_k: int = 10
 
 # --- Endpoints ---
 
