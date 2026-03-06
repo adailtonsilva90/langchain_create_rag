@@ -47,7 +47,7 @@ Available at: `http://localhost:5050`
 
 ## Endpoints
 
-- `POST /test-extraction`: Test raw text extraction from PDF/Images using Gemini.
+- `POST /text-extraction`: Test raw text extraction from PDF/Images using Gemini.
 - `POST /upload`: Upload documents for semantic ingestion and vector storage.
   - [View Ingestion Flow Diagram](docs/diagrams/upload_flow.png)
 - `POST /query`: Query the ingested documents using natural language.

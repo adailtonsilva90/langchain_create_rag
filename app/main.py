@@ -23,7 +23,7 @@ class QueryRequest(BaseModel):
 
 # --- Endpoints ---
 
-@app.post("/test-extraction")
+@app.post("/text-extraction")
 async def test_extraction(file: UploadFile = File(...)):
     """
     Endpoint to test how Gemini extracts raw text from a document.
