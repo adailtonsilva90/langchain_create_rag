@@ -10,3 +10,4 @@ langchain-postgres
 pydantic
 python-dotenv==1.0.1
 python-multipart
+python-pptx

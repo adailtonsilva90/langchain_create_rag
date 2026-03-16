@@ -13,8 +13,24 @@ def extract_raw_text(file_bytes: bytes, filename: str) -> str:
     """
     Extracts ONLY the raw text from a document using Gemini.
     """
-    llm = get_llm()
     ext = os.path.splitext(filename)[1].lower()
+    
+    if ext == ".pptx":
+        try:
+            import io
+            from pptx import Presentation
+            prs = Presentation(io.BytesIO(file_bytes))
+            text_content = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        text_content.append(shape.text)
+            return "\n".join(text_content)
+        except Exception as e:
+            print(f"Error extracting PPTX raw text: {e}")
+            return f"Error: {e}"
+
+    llm = get_llm()
     mime_type = "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"
     if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
     
@@ -41,10 +57,6 @@ def extract_semantic_content(file_bytes: bytes, filename: str) -> Dict[str, Any]
     """
     llm = get_llm()
     ext = os.path.splitext(filename)[1].lower()
-    mime_type = "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"
-    if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
-    
-    data_b64 = base64.b64encode(file_bytes).decode("utf-8")
     
     prompt = (
         "Analise o documento e extraia o texto de forma estruturada.\n"
@@ -58,12 +70,39 @@ def extract_semantic_content(file_bytes: bytes, filename: str) -> Dict[str, Any]
         "}"
     )
 
-    message = HumanMessage(
-        content=[
-            {"type": "text", "text": prompt},
-            {"type": "media", "mime_type": mime_type, "data": data_b64}
-        ]
-    )
+    if ext == ".pptx":
+        try:
+            import io
+            from pptx import Presentation
+            prs = Presentation(io.BytesIO(file_bytes))
+            text_content = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        text_content.append(shape.text.strip())
+            
+            extracted_text = "\n".join(text_content)
+            
+            message = HumanMessage(
+                content=[
+                    {"type": "text", "text": f"{prompt}\n\nAqui está o texto extraído da apresentação:\n\n{extracted_text}"}
+                ]
+            )
+        except Exception as e:
+            print(f"Error reading PPTX offline: {e}")
+            return {"raw_text": "", "sections": []}
+    else:
+        mime_type = "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"
+        if ext in [".jpg", ".jpeg"]: mime_type = "image/jpeg"
+        
+        data_b64 = base64.b64encode(file_bytes).decode("utf-8")
+        
+        message = HumanMessage(
+            content=[
+                {"type": "text", "text": prompt},
+                {"type": "media", "mime_type": mime_type, "data": data_b64}
+            ]
+        )
 
     try:
         response = llm.invoke([message])
