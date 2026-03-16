@@ -1,6 +1,18 @@
 # RAG API Project
+I developed a small project to demonstrate in practice how a Retrieval-Augmented Generation (RAG) architecture works using LangChain.
 
-This is a Python API (FastAPI) focused on **Retrieval-Augmented Generation (RAG)** with semantic chunking based on LangGraph, using Google Gemini and pgvector.
+The goal of this project was to showcase the core components typically found in modern Generative AI systems, such as:
+
+- document ingestion
+- content chunking
+- embeddings generation
+- vector database storage
+- semantic context retrieval
+- response generation using an LLM
+
+An interesting aspect of this project is that I was able to build the entire solution using only free tools. Even in the case of the Gemini model, the free trial version was sufficient to experiment with and validate the architecture.
+
+The objective was to create a simple, educational, and accessible example that can help developers and technical leaders better understand how GenAI pipelines work in practice.
 
 ## Prerequisites
 - Python 3.10+
