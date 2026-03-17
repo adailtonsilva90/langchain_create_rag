@@ -38,7 +38,7 @@ def extract_raw_text(file_bytes: bytes, filename: str) -> str:
     
     message = HumanMessage(
         content=[
-            {"type": "text", "text": "Extraia todo o texto deste documento de forma literal e completa. Retorne apenas o texto extraído."},
+            {"type": "text", "text": "Extract all the text from this document literally and completely. Return only the extracted text."},
             {"type": "media", "mime_type": mime_type, "data": data_b64}
         ]
     )
@@ -59,13 +59,13 @@ def extract_semantic_content(file_bytes: bytes, filename: str) -> Dict[str, Any]
     ext = os.path.splitext(filename)[1].lower()
     
     prompt = (
-        "Analise o documento e extraia o texto de forma estruturada.\n"
-        "Identifique seções semânticas naturais (ex: Experiência, Formação, Capítulos).\n\n"
-        "Retorne EXCLUSIVAMENTE um JSON no formato:\n"
+        "Analyze the document and extract the text in a structured way.\n"
+        "Identify natural semantic sections (e.g. Experience, Education, Chapters).\n\n"
+        "Return EXCLUSIVELY a JSON in the format:\n"
         "{\n"
-        "  \"raw_text\": \"texto completo\",\n"
+        "  \"raw_text\": \"full text\",\n"
         "  \"sections\": [\n"
-        "    {\"category\": \"nome\", \"content\": \"conteúdo\"}\n"
+        "    {\"category\": \"name\", \"content\": \"content\"}\n"
         "  ]\n"
         "}"
     )
@@ -85,7 +85,7 @@ def extract_semantic_content(file_bytes: bytes, filename: str) -> Dict[str, Any]
             
             message = HumanMessage(
                 content=[
-                    {"type": "text", "text": f"{prompt}\n\nAqui está o texto extraído da apresentação:\n\n{extracted_text}"}
+                    {"type": "text", "text": f"{prompt}\n\nHere is the text extracted from the presentation:\n\n{extracted_text}"}
                 ]
             )
         except Exception as e:

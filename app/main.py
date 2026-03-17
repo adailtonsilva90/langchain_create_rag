@@ -79,9 +79,9 @@ async def query_documents(request: QueryRequest):
     llm = ChatGoogleGenerativeAI(model=query_model, temperature=0)
 
     system_prompt = (
-        "Você é um assistente prestativo. Responda APENAS com base no contexto abaixo.\n"
-        "Se não souber, diga que não encontrou a informação.\n\n"
-        "Contexto:\n{context}"
+        "You are a helpful assistant. Answer ONLY based on the context below.\n"
+        "If you don't know, say that you couldn't find the information.\n\n"
+        "Context:\n{context}"
     )
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
